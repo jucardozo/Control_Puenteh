@@ -82,8 +82,9 @@ void 		FTM_StopClock					 (FTM_t);
 
 void FTM_DeadTime(FTM_t ftm, uint8_t DeadT_value,FTM_Prescale_DT_t prescaleDT,bool on);
 void FTM_Combine_Channels(FTM_t ftm,uint8_t pair);
-void FTM_Channel_Pol(FTM_t ftm, uint8_t Channel);
-
+void FTM_Channel_Pol_ALOW(FTM_t ftm, uint8_t Channel);
+void FTM_Channel_Outinit(FTM_t ftm, uint8_t Channel);
+void FTM_Sync_FTM_Counter(FTM_t ftm);
 void 		FTM_SetOverflowMode   			 (FTM_t, bool);
 bool 		FTM_IsOverflowPending 			 (FTM_t);
 void 		FTM_ClearOverflowFlag 			 (FTM_t);
