@@ -9,6 +9,9 @@
 void PWM_Init(void);
 void PWM_ISR3(void);
 void PWM_ISR0(void);
+/*FUNCIONES PRIVADAS*/
+void FTM_Enable_W_Protec(FTM_t ftm);
+void FTM_Disable_W_Protec(FTM_t ftm);
 
 uint16_t PWM_modulus = 147-1;//10000-1;
 uint16_t PWM_duty    = 74;//5000-1;
@@ -25,29 +28,12 @@ __ISR__ FTM0_IRQHandler(void)
 
 void PWM_ISR3 (void)
 {
-	FTM_ClearOverflowFlag (FTM3);
-	FTM_StopClock(FTM3);
-	FTM_SetCounter(FTM3, 0, PWM_duty);  //change DC
-	FTM_SetCounter(FTM3, 1, PWM_duty);
-	FTM_StartClock(FTM0);
-
-	GPIO_Toggle(PTC, 1 << 8);			  //GPIO pin PTC8
-
-	PWM_duty %= PWM_modulus;
 
 }
 
 void PWM_ISR0 (void)
 {
-	FTM_ClearOverflowFlag (FTM0);
-	FTM_StopClock(FTM0);
-	FTM_SetCounter(FTM0, 6, PWM_duty);  //change DC
-	FTM_SetCounter(FTM0, 7, PWM_duty);
-	FTM_StartClock(FTM3);
 
-	GPIO_Toggle(PTC, 1 << 8);			  //GPIO pin PTC8
-
-	PWM_duty %= PWM_modulus;
 }
 
 
@@ -83,7 +69,7 @@ void FTM_Init (void)
 
 void PWM_Init (void)
 {
-
+	//Todos las Salidas Responden al Modulo de la FTM3.
 	// PTD 0 as PWM channel 0
 		PCRstr UserPCR;
 
@@ -105,28 +91,26 @@ void PWM_Init (void)
 
 		PORT_Configure2 (PORTD,1,UserPCR1);
 
-	// Se inicializa los pines para las otras dos señales FTM0
-
-		// PTA 1 as PWM Channel 6
+		// PTD 2 as PWM Channel 2
 		PCRstr UserPCR2;
 
 		UserPCR2.PCR=false;			// Default All false, Set only those needed
 
 		UserPCR2.FIELD.DSE=true;
-		UserPCR2.FIELD.MUX=PORT_mAlt3;//PORT_mAlt3;
+		UserPCR2.FIELD.MUX=PORT_mAlt4;
 		UserPCR2.FIELD.IRQC=PORT_eDisabled;
 
-		PORT_Configure2 (PORTA,1,UserPCR2);
-	// PTA 2 as PWM Channel 7
+		PORT_Configure2 (PORTD,2,UserPCR2);
+		// PTD 3 as PWM Channel 3
 		PCRstr UserPCR3;
 
 		UserPCR3.PCR=false;			// Default All false, Set only those needed
 
 		UserPCR3.FIELD.DSE=true;
-		UserPCR3.FIELD.MUX=PORT_mAlt3;//PORT_mAlt3;
+		UserPCR3.FIELD.MUX=PORT_mAlt4;//PORT_mAlt3;
 		UserPCR3.FIELD.IRQC=PORT_eDisabled;
 
-		PORT_Configure2 (PORTA,2,UserPCR3);
+		PORT_Configure2 (PORTD,3,UserPCR3);
 
 	// PTC 8 as GPIO
 		PCRstr UserPCRg;
@@ -140,53 +124,38 @@ void PWM_Init (void)
 
 		GPIO_SetDirection(PTC, 8, GPIO__OUT);
 
+	// Configuro parametros para el modulo FTM3 ,en general
+	FTM_Disable_W_Protec(FTM3);
 
+	FTM_SetPrescaler(FTM3, FTM_PSC_x4);			//configuro prescaler
+	FTM_SetModulus(FTM3, PWM_modulus);			//configuro modulo
+	FTM_SetOverflowMode(FTM3, false);				//deshabilito la interrupciones
 
-
-	// Configuro parametros para la FTM3 ,en general
-
-	FTM_SetPrescaler(FTM3, FTM_PSC_x4);
-	FTM_SetModulus(FTM3, PWM_modulus);
-	FTM_SetOverflowMode(FTM3, true);
-
-	FTM_Sync_FTM_Counter(FTM3);
-	FTM_Combine_Channels(FTM3,FTM_CH_0);   //creo q no ta funcionando. la sincronizacion
-
-	//configuracion para los cananles especificos
+	//Configuracion Canal 0
+	FTM_Combine_Channels(FTM3,FTM_CH_0); 		//channel 1 es el complemento del channel 0
 	FTM_SetWorkingMode(FTM3, FTM_CH_0, FTM_mPulseWidthModulation);			// MSA  / B
-	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_lAssertedHigh);   // ELSA / B
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_lAssertedLow);   // ELSA / B
 	FTM_SetCounter(FTM3, FTM_CH_0, PWM_duty);
 
-	FTM_Channel_Outinit(FTM3,FTM_CH_0); //NOANDA
-
-	FTM_SetWorkingMode(FTM3, FTM_CH_1, FTM_mPulseWidthModulation);			// MSA  / B
-	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_1, FTM_lAssertedHigh);   // ELSA / B
+	//Configuracion para el canal 1
+	FTM_SetWorkingMode(FTM3, FTM_CH_1, FTM_mPulseWidthModulation);
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_1, FTM_lAssertedLow);
 	FTM_SetCounter(FTM3, FTM_CH_1, PWM_duty);
 
+	//configuracion para el canal 2
+	FTM_Combine_Channels(FTM3,FTM_CH_2); 		//channel 3 es el complemento del channel 2
+	FTM_SetWorkingMode(FTM3, FTM_CH_2, FTM_mPulseWidthModulation);
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_2, FTM_lAssertedLow);
+	FTM_SetCounter(FTM3, FTM_CH_2, PWM_duty);
 
+	//Configuracion para el canal 3
+	FTM_SetWorkingMode(FTM3, FTM_CH_3, FTM_mPulseWidthModulation);
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_3, FTM_lAssertedLow);
+	FTM_SetCounter(FTM3, FTM_CH_3, PWM_duty);
 
-	/// Configuro parametros para la FTM0 , en general
+	//Disable write
+	FTM_Enable_W_Protec(FTM3);
 
-	FTM_SetPrescaler(FTM0, FTM_PSC_x4);
-	FTM_SetModulus(FTM0, PWM_modulus);
-	FTM_SetOverflowMode(FTM0, true);
-
-	FTM_Sync_FTM_Counter(FTM0);
-	FTM_Combine_Channels(FTM0,3);
-
-	//Config pa los canales
-	FTM_SetWorkingMode(FTM0, 6, FTM_mPulseWidthModulation);			// MSA  / B
-	FTM_SetPulseWidthModulationLogic(FTM0, 6, FTM_lAssertedHigh);   // ELSA / B
-	FTM_SetCounter(FTM0, 6, PWM_duty);
-;
-
-	FTM_SetWorkingMode(FTM0, 7, FTM_mPulseWidthModulation);			// MSA  / B
-	FTM_SetPulseWidthModulationLogic(FTM0, 7, FTM_lAssertedHigh);   // ELSA / B
-	FTM_SetCounter(FTM0, 7, PWM_duty);
-
-	//Se inicia La ftm
-	//FTM_StartClock(FTM3);
-	//FTM_StartClock(FTM0); //unico fin testearlo, no arrancarlo con el otro*/
 	return;
 }
 
@@ -231,13 +200,13 @@ void FTM_Sync_FTM_Counter(FTM_t ftm){
 
 void FTM_Channel_Outinit(FTM_t ftm, uint8_t Channel){
 	uint32_t outinit=0;
-	uint32_t mode=0;
-	mode=ftm->MODE;
-	mode|=FTM_MODE_INIT(1);
+	//uint32_t mode=0;
+	//mode=ftm->MODE;
+	//mode|=FTM_MODE_INIT(1);
 
 	outinit|=FTM_OUTINIT_CH0OI(0);
 
-	ftm->MODE=mode;
+	//ftm->MODE=mode;
 	ftm->OUTINIT=outinit;
 	return;
 }
@@ -295,13 +264,13 @@ void FTM_Combine_Channels(FTM_t ftm, uint8_t pair)
 		lock=true;
 		}
 	switch(pair){
-		case 0:	combine|=FTM_COMBINE_SYNCEN0(1); //sincronizo el channel 0 con el 1.
+		case 0:	combine|=FTM_COMBINE_COMP0(1); //sincronizo el channel 0 con el 1.
 			ftm->COMBINE|=combine;break;
-		case 2:combine|=FTM_COMBINE_SYNCEN1(1); //sincronizo el channel 2 con el 3.
+		case 2:combine|=FTM_COMBINE_COMP1(1); //sincronizo el channel 2 con el 3.
 			ftm->COMBINE|=combine;break;
-		case 4:combine|=FTM_COMBINE_SYNCEN2(1); //sincronizo el channel 4 con el 5.
+		case 4:combine|=FTM_COMBINE_COMP2(1); //sincronizo el channel 4 con el 5.
 			ftm->COMBINE|=combine; break;
-		case 6:combine|=FTM_COMBINE_SYNCEN3(1); //sincronizo el channel 6 con el 7.
+		case 6:combine|=FTM_COMBINE_COMP3(1); //sincronizo el channel 6 con el 7.
 			ftm->COMBINE|=combine; break;
 	}
 	return;
@@ -352,7 +321,6 @@ void FTM_ClearOverflowFlag (FTM_t ftm)
 
 void FTM_SetWorkingMode (FTM_t ftm, FTMChannel_t channel, FTMMode_t mode)
 {
-
 	ftm->CONTROLS[channel].CnSC = (ftm->CONTROLS[channel].CnSC & ~(FTM_CnSC_MSB_MASK | FTM_CnSC_MSA_MASK)) |
 			                      (FTM_CnSC_MSB((mode >> 1) & 0X01) | FTM_CnSC_MSA((mode >> 0) & 0X01));
 }
@@ -386,20 +354,26 @@ FTMEffect_t FTM_GetOutputCompareEffect (FTM_t ftm, FTMChannel_t channel)
 
 void FTM_SetPulseWidthModulationLogic (FTM_t ftm, FTMChannel_t channel, FTMLogic_t logic)
 {
-	uint32_t cnsc=0;
+	ftm->CONTROLS[channel].CnSC = (ftm->CONTROLS[channel].CnSC & ~(FTM_CnSC_ELSB_MASK | FTM_CnSC_ELSA_MASK)) |
+				                  (FTM_CnSC_ELSB((logic >> 1) & 0X01) | FTM_CnSC_ELSA((logic >> 0) & 0X01));
+	return;}
+
+	/*uint32_t cnsc=0;
 	if(logic==FTM_lAssertedHigh){
 		cnsc=ftm->CONTROLS[channel].CnSC;
+		cnsc|=FTM_CnSC_ELSA(1);
 		cnsc|=FTM_CnSC_ELSB(1);
+		cnsc|=FTM_CnSC_MSA(1);
+		cnsc|=FTM_CnSC_MSB(1);
 	}
 	else{//FTM_lAssertedHigh
 		cnsc=ftm->CONTROLS[channel].CnSC;
 		cnsc|=FTM_CnSC_ELSA(1);
 	}
 	ftm->CONTROLS[channel].CnSC=cnsc;
-	return;
+	return;*/
 	/*ftm->CONTROLS[channel].CnSC = (ftm->CONTROLS[channel].CnSC & ~(FTM_CnSC_ELSB_MASK | FTM_CnSC_ELSA_MASK)) |
 				                  (FTM_CnSC_ELSB((logic >> 1) & 0X01) | FTM_CnSC_ELSA((logic >> 0) & 0X01));*/
-}
 
 FTMLogic_t FTM_GetPulseWidthModulationLogic (FTM_t ftm, FTMChannel_t channel)
 {
@@ -431,3 +405,12 @@ void FTM_ClearInterruptFlag (FTM_t ftm, FTMChannel_t channel)
 	ftm->CONTROLS[channel].CnSC &= ~FTM_CnSC_CHF_MASK;
 }
 
+/*FUNCIONES PRIVADAS*/
+void FTM_Enable_W_Protec(FTM_t ftm){
+	 ftm->MODE = (ftm->MODE & ~FTM_MODE_WPDIS_MASK) | FTM_MODE_WPDIS(0);
+	 return;
+}
+void FTM_Disable_W_Protec(FTM_t ftm){
+	ftm->MODE = FTM_MODE_WPDIS(1);
+	return;
+}

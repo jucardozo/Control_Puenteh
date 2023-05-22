@@ -27,8 +27,8 @@ typedef enum
 
 typedef enum
 {
-	FTM_lAssertedHigh	= 0x02,
-	FTM_lAssertedLow 	= 0x03,
+	FTM_lAssertedHigh	= 0b10,
+	FTM_lAssertedLow 	=  0b11,
 } FTMLogic_t;
 
 typedef enum
