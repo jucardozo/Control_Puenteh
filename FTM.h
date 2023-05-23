@@ -80,7 +80,7 @@ FTMData_t 	FTM_GetModulus 					 (FTM_t);
 void 		FTM_StartClock					 (FTM_t);
 void 		FTM_StopClock					 (FTM_t);
 
-void FTM_DeadTime(FTM_t ftm, uint8_t DeadT_value,FTM_Prescale_DT_t prescaleDT,bool on);
+void FTM_DeadTime(FTM_t ftm, uint8_t pair ,uint8_t DeadT_value,FTM_Prescale_DT_t prescaleDT);
 void FTM_Combine_Channels(FTM_t ftm,uint8_t pair);
 void FTM_Channel_Pol_ALOW(FTM_t ftm, uint8_t Channel);
 void FTM_Channel_Outinit(FTM_t ftm, uint8_t Channel);

@@ -15,7 +15,7 @@ void FTM_Disable_W_Protec(FTM_t ftm);
 
 uint16_t PWM_modulus = 147-1;//10000-1;
 uint16_t PWM_duty    = 74;//5000-1;
-
+uint8_t DeadTime_Value=5;
 /* FTM0 fault, overflow and channels interrupt handler*/
 __ISR__ FTM3_IRQHandler(void)
 {
@@ -133,6 +133,7 @@ void PWM_Init (void)
 
 	//Configuracion Canal 0
 	FTM_Combine_Channels(FTM3,FTM_CH_0); 		//channel 1 es el complemento del channel 0
+	FTM_DeadTime(FTM3, FTM_CH_0 ,DeadTime_Value,FTM_Prescale_DT_1);	//habilitacion e insercion del deadtime de 100ns
 	FTM_SetWorkingMode(FTM3, FTM_CH_0, FTM_mPulseWidthModulation);			// MSA  / B
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_lAssertedLow);   // ELSA / B
 	FTM_SetCounter(FTM3, FTM_CH_0, PWM_duty);
@@ -144,6 +145,7 @@ void PWM_Init (void)
 
 	//configuracion para el canal 2
 	FTM_Combine_Channels(FTM3,FTM_CH_2); 		//channel 3 es el complemento del channel 2
+	FTM_DeadTime(FTM3, FTM_CH_2 ,DeadTime_Value,FTM_Prescale_DT_1);
 	FTM_SetWorkingMode(FTM3, FTM_CH_2, FTM_mPulseWidthModulation);
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_2, FTM_lAssertedLow);
 	FTM_SetCounter(FTM3, FTM_CH_2, PWM_duty);
@@ -213,15 +215,22 @@ void FTM_Channel_Outinit(FTM_t ftm, uint8_t Channel){
 
 
 
-void FTM_DeadTime(FTM_t ftm, uint8_t DeadT_value,FTM_Prescale_DT_t prescaleDT,bool on)
+void FTM_DeadTime(FTM_t ftm, uint8_t pair ,uint8_t DeadT_value,FTM_Prescale_DT_t prescaleDT)
 {
-	if(on==true){
-			uint32_t deadtime=0;
-			deadtime=FTM_DEADTIME_DTPS(prescaleDT);
-			deadtime|=FTM_DEADTIME_DTVAL(DeadT_value);
-			ftm->DEADTIME=deadtime;
-			ftm->COMBINE|=FTM_COMBINE_DTEN2(1);
-		}
+	switch(pair){ //habilito el par de canales
+		case 0:	ftm->COMBINE|=FTM_COMBINE_DTEN0(1); //sincronizo el channel 0 con el 1.
+				break;
+		case 2:ftm->COMBINE|=FTM_COMBINE_DTEN1(1);; //sincronizo el channel 2 con el 3.
+				break;
+		case 3:ftm->COMBINE|=FTM_COMBINE_DTEN2(1); //sincronizo el channel 4 con el 5.
+				break;
+		case 6:ftm->COMBINE|=FTM_COMBINE_DTEN3(1); //sincronizo el channel 6 con el 7.
+				break;
+	}
+	uint32_t deadtime=0;
+	deadtime|=FTM_DEADTIME_DTPS(prescaleDT);
+	deadtime|=FTM_DEADTIME_DTVAL(DeadT_value);
+	ftm->DEADTIME=deadtime;
 	return;
 }
 void FTM_Channel_Pol_ALOW(FTM_t ftm, uint8_t Channel)		//active_low
