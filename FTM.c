@@ -62,11 +62,6 @@ void FTM_Init (void)
 	PWM_Init();
 }
 
-/// FTM PWM Example
-
-// To Test Connect PC9(IC)-PC8(GPIO)
-// or PC9(IC)-PC1(OC)
-
 void PWM_Init (void)
 {
 	//Todos las Salidas Responden al Modulo de la FTM3.
@@ -83,8 +78,7 @@ void PWM_Init (void)
 	// PTD 1 as PWM Channel 1
 		PCRstr UserPCR1;
 
-		UserPCR1.PCR=false;			// Default All false, Set only those needed
-
+		UserPCR1.PCR=false;
 		UserPCR1.FIELD.DSE=true;
 		UserPCR1.FIELD.MUX=PORT_mAlt4;//PORT_mAlt3;
 		UserPCR1.FIELD.IRQC=PORT_eDisabled;
@@ -94,27 +88,39 @@ void PWM_Init (void)
 		// PTD 2 as PWM Channel 2
 		PCRstr UserPCR2;
 
-		UserPCR2.PCR=false;			// Default All false, Set only those needed
+		UserPCR2.PCR=false;
 
 		UserPCR2.FIELD.DSE=true;
 		UserPCR2.FIELD.MUX=PORT_mAlt4;
 		UserPCR2.FIELD.IRQC=PORT_eDisabled;
 
 		PORT_Configure2 (PORTD,2,UserPCR2);
+
 		// PTD 3 as PWM Channel 3
 		PCRstr UserPCR3;
 
-		UserPCR3.PCR=false;			// Default All false, Set only those needed
+		UserPCR3.PCR=false;
 
 		UserPCR3.FIELD.DSE=true;
-		UserPCR3.FIELD.MUX=PORT_mAlt4;//PORT_mAlt3;
+		UserPCR3.FIELD.MUX=PORT_mAlt4;
 		UserPCR3.FIELD.IRQC=PORT_eDisabled;
 
 		PORT_Configure2 (PORTD,3,UserPCR3);
 
-	// PTC 8 as GPIO
+		//PTC12 as fault input FLT0
+		PCRstr UserPCR4;
+
+		UserPCR4.PCR=false;
+
+		UserPCR4.FIELD.DSE=true;
+		UserPCR4.FIELD.MUX=PORT_mAlt6;			//FTM3-FLT0
+		UserPCR4.FIELD.IRQC=PORT_eDisabled;
+
+		PORT_Configure2 (PORTC,12,UserPCR4);
+
+	/*// PTC 8 as GPIO .Used by testing
 		PCRstr UserPCRg;
-		UserPCRg.PCR=false;			// Default All false, Set only those needed
+		UserPCRg.PCR=false;
 
 		UserPCRg.FIELD.DSE=true;
 		UserPCRg.FIELD.MUX=PORT_mGPIO;
@@ -122,7 +128,7 @@ void PWM_Init (void)
 
 		PORT_Configure2 (PORTC,8,UserPCRg);
 
-		GPIO_SetDirection(PTC, 8, GPIO__OUT);
+		GPIO_SetDirection(PTC, 8, GPIO__OUT);*/
 
 	// Configuro parametros para el modulo FTM3 ,en general
 	FTM_Disable_W_Protec(FTM3);
@@ -131,8 +137,14 @@ void PWM_Init (void)
 	FTM_SetModulus(FTM3, PWM_modulus);			//configuro modulo
 	FTM_SetOverflowMode(FTM3, false);				//deshabilito la interrupciones
 
+	FTM_FaultCtrl(FTM3,false,FTM_FLT_AutoClear);
+	FTM_FLT_TimeStable(FTM3,0);
+
 	//Configuracion Canal 0
 	FTM_Combine_Channels(FTM3,FTM_CH_0); 		//channel 1 es el complemento del channel 0
+
+	FTM_FLT_Combine(FTM3,FTM_CH_0);
+
 	FTM_DeadTime(FTM3, FTM_CH_0 ,DeadTime_Value,FTM_Prescale_DT_1);	//habilitacion e insercion del deadtime de 100ns
 	FTM_SetWorkingMode(FTM3, FTM_CH_0, FTM_mPulseWidthModulation);			// MSA  / B
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_lAssertedLow);   // ELSA / B
@@ -165,6 +177,35 @@ void PWM_Init (void)
 
 
 // Setters
+void FTM_FaultCtrl(FTM_t ftm,bool interrup_on,uint8_t mode){
+	//MODE
+	ftm->MODE|=FTM_MODE_FAULTM(mode);  //SE HABILITA LA POSIBILIDAD DE TENER UNA CONDICION DE FALLA
+	if(interrup_on){ftm->MODE|=FTM_MODE_FAULTIE(1);}	//SE HABILITAN INTERRUPCIONES CUANDO HAY UNA CONDICION DE FALLA
+	return ;
+}
+void FTM_FLT_Combine(FTM_t ftm,uint8_t pair){
+	switch(pair){ //habilito el par de canales
+		case 0:	ftm->COMBINE|=FTM_COMBINE_FAULTEN0(1); //sincronizo el channel 0 con el 1.
+				break;
+		case 2:ftm->COMBINE|=FTM_COMBINE_FAULTEN1(1); //sincronizo el channel 2 con el 3.
+				break;
+		case 3:ftm->COMBINE|=FTM_COMBINE_FAULTEN2(1); //sincronizo el channel 4 con el 5.
+				break;
+		case 6:ftm->COMBINE|=FTM_COMBINE_FAULTEN3(1); //sincronizo el channel 6 con el 7.
+				break;
+	}
+	return;
+}
+
+//no esta configurado para todas las FTM , en el caso de la 3 solo tiene dispo la FLT0. PTC12
+void FTM_FLT_TimeStable(FTM_t ftm,uint8_t value){
+
+	ftm->FLTCTRL|=FTM_FLTCTRL_FFVAL(value);		//limite del contador ffval, que garantiza tpo de establecimiento.
+	ftm->FLTCTRL|=FTM_FLTCTRL_FAULT0EN(1);		//habilito la entrada?
+	return;
+}
+
+
 void FTM_Sync_FTM_Counter(FTM_t ftm){
 	uint32_t synconf=0;
 	uint32_t sync=0;
@@ -220,7 +261,7 @@ void FTM_DeadTime(FTM_t ftm, uint8_t pair ,uint8_t DeadT_value,FTM_Prescale_DT_t
 	switch(pair){ //habilito el par de canales
 		case 0:	ftm->COMBINE|=FTM_COMBINE_DTEN0(1); //sincronizo el channel 0 con el 1.
 				break;
-		case 2:ftm->COMBINE|=FTM_COMBINE_DTEN1(1);; //sincronizo el channel 2 con el 3.
+		case 2:ftm->COMBINE|=FTM_COMBINE_DTEN1(1); //sincronizo el channel 2 con el 3.
 				break;
 		case 3:ftm->COMBINE|=FTM_COMBINE_DTEN2(1); //sincronizo el channel 4 con el 5.
 				break;

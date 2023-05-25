@@ -3,6 +3,7 @@
 #define SOURCES_FTM_H_
 
 #include "hardware.h"
+#include <stdbool.h>
 
 typedef enum
 {
@@ -43,7 +44,12 @@ typedef enum
 	FTM_PSC_x128	= 0x07,
 
 } FTM_Prescal_t;
-
+typedef enum{
+	FTM_FLT_Disable =0b00,
+	FTM_FLT_ManualClear=0b01, //solo para algunos canales 0,2,4,6
+	FTM_FLT_ManualClerA=0b10,	//para todos los canales
+	FTM_FLT_AutoClear=0b11,	  //para todos los canales.
+} FTM_Mode_FLT_t;
 
 typedef enum {FTM_Prescale_DT_1=0b01,FTM_Prescale_DT_4=0b10,FTM_Prescale_DT_16=0b11 }FTM_Prescale_DT_t;	//used only DeadTime
 
@@ -85,6 +91,12 @@ void FTM_Combine_Channels(FTM_t ftm,uint8_t pair);
 void FTM_Channel_Pol_ALOW(FTM_t ftm, uint8_t Channel);
 void FTM_Channel_Outinit(FTM_t ftm, uint8_t Channel);
 void FTM_Sync_FTM_Counter(FTM_t ftm);
+
+void FTM_FaultCtrl(FTM_t ftm,bool interrup_on,uint8_t mode);
+void FTM_FLT_Combine(FTM_t ftm,uint8_t pair);
+
+void FTM_FLT_TimeStable(FTM_t ftm,uint8_t value);
+
 void 		FTM_SetOverflowMode   			 (FTM_t, bool);
 bool 		FTM_IsOverflowPending 			 (FTM_t);
 void 		FTM_ClearOverflowFlag 			 (FTM_t);
