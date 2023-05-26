@@ -137,32 +137,34 @@ void PWM_Init (void)
 	FTM_SetModulus(FTM3, PWM_modulus);			//configuro modulo
 	FTM_SetOverflowMode(FTM3, false);				//deshabilito la interrupciones
 
-	FTM_FaultCtrl(FTM3,false,FTM_FLT_AutoClear);
+	FTM_FaultCtrl(FTM3,false,FTM_FLT_ManualClearA);
 	FTM_FLT_TimeStable(FTM3,0);
 
-	//Configuracion Canal 0
+	//Configuracion Canal 0 -H1
 	FTM_Combine_Channels(FTM3,FTM_CH_0); 		//channel 1 es el complemento del channel 0
-
 	FTM_FLT_Combine(FTM3,FTM_CH_0);
-
 	FTM_DeadTime(FTM3, FTM_CH_0 ,DeadTime_Value,FTM_Prescale_DT_1);	//habilitacion e insercion del deadtime de 100ns
 	FTM_SetWorkingMode(FTM3, FTM_CH_0, FTM_mPulseWidthModulation);			// MSA  / B
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_lAssertedLow);   // ELSA / B
 	FTM_SetCounter(FTM3, FTM_CH_0, PWM_duty);
+	FTM_Channel_Pol_ALOW(FTM3,FTM_CH_0);		//ACTIVO BAJO
 
 	//Configuracion para el canal 1
+	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_1);		//ACTIVO BAJO
 	FTM_SetWorkingMode(FTM3, FTM_CH_1, FTM_mPulseWidthModulation);
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_1, FTM_lAssertedLow);
 	FTM_SetCounter(FTM3, FTM_CH_1, PWM_duty);
 
 	//configuracion para el canal 2
 	FTM_Combine_Channels(FTM3,FTM_CH_2); 		//channel 3 es el complemento del channel 2
+	FTM_FLT_Combine(FTM3,FTM_CH_2);
 	FTM_DeadTime(FTM3, FTM_CH_2 ,DeadTime_Value,FTM_Prescale_DT_1);
 	FTM_SetWorkingMode(FTM3, FTM_CH_2, FTM_mPulseWidthModulation);
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_2, FTM_lAssertedLow);
 	FTM_SetCounter(FTM3, FTM_CH_2, PWM_duty);
 
 	//Configuracion para el canal 3
+	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_3);		//ACTIVO BAJO
 	FTM_SetWorkingMode(FTM3, FTM_CH_3, FTM_mPulseWidthModulation);
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_3, FTM_lAssertedLow);
 	FTM_SetCounter(FTM3, FTM_CH_3, PWM_duty);
@@ -201,6 +203,7 @@ void FTM_FLT_Combine(FTM_t ftm,uint8_t pair){
 void FTM_FLT_TimeStable(FTM_t ftm,uint8_t value){
 
 	ftm->FLTCTRL|=FTM_FLTCTRL_FFVAL(value);		//limite del contador ffval, que garantiza tpo de establecimiento.
+	ftm->FLTCTRL|=FTM_FLTCTRL_FFLTR0EN(1);
 	ftm->FLTCTRL|=FTM_FLTCTRL_FAULT0EN(1);		//habilito la entrada?
 	return;
 }
@@ -276,31 +279,15 @@ void FTM_DeadTime(FTM_t ftm, uint8_t pair ,uint8_t DeadT_value,FTM_Prescale_DT_t
 }
 void FTM_Channel_Pol_ALOW(FTM_t ftm, uint8_t Channel)		//active_low
 {
-	uint32_t Pol_Ch=0;
-	static bool lock=false;
-	if (lock==false){
-		Pol_Ch=0;		//comparte registro con el deadtiem , posible error
-		lock=true;
-		}
 	switch(Channel){
-		case 0:	ftm->POL=(ftm->POL&~FTM_POL_POL0_MASK)|FTM_POL_POL0(1);
-			//Pol_Ch=FTM_POL_POL0(1);
-				//ftm->POL|=Pol_Ch;
-		break;
-		case 1:Pol_Ch=FTM_POL_POL1(1);
-			ftm->POL|=Pol_Ch;break;
-		case 2:Pol_Ch=FTM_POL_POL2(1);
-			ftm->POL|=Pol_Ch;break;
-		case 3:Pol_Ch=FTM_POL_POL3(1);
-			ftm->POL|=Pol_Ch;break;
-		case 4:Pol_Ch=FTM_POL_POL4(1);
-			ftm->POL|=Pol_Ch;break;
-		case 5:Pol_Ch=FTM_POL_POL5(1);
-			ftm->POL|=Pol_Ch;break;
-		case 6:Pol_Ch=FTM_POL_POL6(1);
-			ftm->POL|=Pol_Ch;break;
-		case 7:Pol_Ch=FTM_POL_POL7(1);
-			ftm->POL|=Pol_Ch;break;
+		case 0:	ftm->POL|=(ftm->POL&~FTM_POL_POL0_MASK)|FTM_POL_POL0(1);break;
+		case 1:ftm->POL|=(ftm->POL&~FTM_POL_POL1_MASK)|FTM_POL_POL1(1);break;
+		case 2:ftm->POL|=(ftm->POL&~FTM_POL_POL2_MASK)|FTM_POL_POL2(1);break;
+		case 3:ftm->POL|=(ftm->POL&~FTM_POL_POL3_MASK)|FTM_POL_POL3(1);break;
+		case 4:ftm->POL=(ftm->POL&~FTM_POL_POL4_MASK)|FTM_POL_POL4(1);break;
+		case 5:ftm->POL=(ftm->POL&~FTM_POL_POL5_MASK)|FTM_POL_POL5(1);break;
+		case 6:ftm->POL=(ftm->POL&~FTM_POL_POL6_MASK)|FTM_POL_POL6(1);break;
+		case 7:ftm->POL=(ftm->POL&~FTM_POL_POL7_MASK)|FTM_POL_POL7(1);break;
 		}
 	return;
 }

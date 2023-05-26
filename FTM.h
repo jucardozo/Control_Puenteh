@@ -29,7 +29,7 @@ typedef enum
 typedef enum
 {
 	FTM_lAssertedHigh	= 0b10,
-	FTM_lAssertedLow 	=  0b11,
+	FTM_lAssertedLow 	=  0b11,		//low true
 } FTMLogic_t;
 
 typedef enum
@@ -47,7 +47,7 @@ typedef enum
 typedef enum{
 	FTM_FLT_Disable =0b00,
 	FTM_FLT_ManualClear=0b01, //solo para algunos canales 0,2,4,6
-	FTM_FLT_ManualClerA=0b10,	//para todos los canales
+	FTM_FLT_ManualClearA=0b10,	//para todos los canales
 	FTM_FLT_AutoClear=0b11,	  //para todos los canales.
 } FTM_Mode_FLT_t;
 
