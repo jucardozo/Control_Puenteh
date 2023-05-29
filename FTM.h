@@ -28,8 +28,8 @@ typedef enum
 
 typedef enum
 {
-	FTM_lAssertedHigh	= 0b10,
-	FTM_lAssertedLow 	=  0b11,		//low true
+	FTM_High_true	= 0b10,
+	FTM_Low_true 	=  0b11,		//low true
 } FTMLogic_t;
 
 typedef enum
@@ -91,6 +91,8 @@ void FTM_Combine_Channels(FTM_t ftm,uint8_t pair);
 void FTM_Channel_Pol_ALOW(FTM_t ftm, uint8_t Channel);
 void FTM_Channel_Outinit(FTM_t ftm, uint8_t Channel);
 void FTM_Sync_FTM_Counter(FTM_t ftm);
+//Especial para las condiciones de la aplicacion.
+void FTM_REPOSO();
 
 void FTM_FaultCtrl(FTM_t ftm,bool interrup_on,uint8_t mode);
 void FTM_FLT_Combine(FTM_t ftm,uint8_t pair);

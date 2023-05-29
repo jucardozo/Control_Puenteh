@@ -10,6 +10,7 @@
 #include "PORT.h"
 #include "GPIO.h"
 #include "FTM.h"
+#include "DRV_CMP.h"
 
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
@@ -29,12 +30,26 @@ static void delayLoop(uint32_t veces);
  *******************************************************************************
  ******************************************************************************/
 
+//Pines Utilizados
+/*CMP PTC8 INM(THRESHOLD)
+ *    PTC9 INP(SEÑAL)
+ *    PTB20 COUT
+ *FTM PTD1 ->H1
+ *    PTD0 ->L1
+ *    PTD3-> H2
+ *    PTD-> L2
+ *    PTC12 -> FLT(INPUT FAULT)
+*/
+
+
+
 /* Función que se llama 1 vez, al comienzo del programa */
 void App_Init (void)
 {
 	 	PORT_Init();
 		GPIO_Init();
 		FTM_Init();
+		Init_CMP(CMP0);
 		//delayLoop(4000000UL);
 		FTM_StartClock(FTM3);
 

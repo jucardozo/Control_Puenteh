@@ -28,6 +28,8 @@ __ISR__ FTM0_IRQHandler(void)
 
 void PWM_ISR3 (void)
 {
+	FTM_REPOSO();
+	return;
 
 }
 
@@ -118,18 +120,6 @@ void PWM_Init (void)
 
 		PORT_Configure2 (PORTC,12,UserPCR4);
 
-	/*// PTC 8 as GPIO .Used by testing
-		PCRstr UserPCRg;
-		UserPCRg.PCR=false;
-
-		UserPCRg.FIELD.DSE=true;
-		UserPCRg.FIELD.MUX=PORT_mGPIO;
-		UserPCRg.FIELD.IRQC=PORT_eDisabled;
-
-		PORT_Configure2 (PORTC,8,UserPCRg);
-
-		GPIO_SetDirection(PTC, 8, GPIO__OUT);*/
-
 	// Configuro parametros para el modulo FTM3 ,en general
 	FTM_Disable_W_Protec(FTM3);
 
@@ -137,22 +127,23 @@ void PWM_Init (void)
 	FTM_SetModulus(FTM3, PWM_modulus);			//configuro modulo
 	FTM_SetOverflowMode(FTM3, false);				//deshabilito la interrupciones
 
-	FTM_FaultCtrl(FTM3,false,FTM_FLT_ManualClearA);
+	FTM_FaultCtrl(FTM3,true,FTM_FLT_ManualClearA);
 	FTM_FLT_TimeStable(FTM3,0);
 
 	//Configuracion Canal 0 -H1
 	FTM_Combine_Channels(FTM3,FTM_CH_0); 		//channel 1 es el complemento del channel 0
 	FTM_FLT_Combine(FTM3,FTM_CH_0);
 	FTM_DeadTime(FTM3, FTM_CH_0 ,DeadTime_Value,FTM_Prescale_DT_1);	//habilitacion e insercion del deadtime de 100ns
+
 	FTM_SetWorkingMode(FTM3, FTM_CH_0, FTM_mPulseWidthModulation);			// MSA  / B
-	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_lAssertedLow);   // ELSA / B
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_Low_true);   // ELSA / B
 	FTM_SetCounter(FTM3, FTM_CH_0, PWM_duty);
-	FTM_Channel_Pol_ALOW(FTM3,FTM_CH_0);		//ACTIVO BAJO
+	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_0);		//ACTIVO BAJO
 
 	//Configuracion para el canal 1
 	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_1);		//ACTIVO BAJO
 	FTM_SetWorkingMode(FTM3, FTM_CH_1, FTM_mPulseWidthModulation);
-	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_1, FTM_lAssertedLow);
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_1, FTM_Low_true);
 	FTM_SetCounter(FTM3, FTM_CH_1, PWM_duty);
 
 	//configuracion para el canal 2
@@ -160,13 +151,13 @@ void PWM_Init (void)
 	FTM_FLT_Combine(FTM3,FTM_CH_2);
 	FTM_DeadTime(FTM3, FTM_CH_2 ,DeadTime_Value,FTM_Prescale_DT_1);
 	FTM_SetWorkingMode(FTM3, FTM_CH_2, FTM_mPulseWidthModulation);
-	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_2, FTM_lAssertedLow);
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_2, FTM_Low_true);
 	FTM_SetCounter(FTM3, FTM_CH_2, PWM_duty);
 
 	//Configuracion para el canal 3
 	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_3);		//ACTIVO BAJO
 	FTM_SetWorkingMode(FTM3, FTM_CH_3, FTM_mPulseWidthModulation);
-	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_3, FTM_lAssertedLow);
+	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_3, FTM_Low_true);
 	FTM_SetCounter(FTM3, FTM_CH_3, PWM_duty);
 
 	//Disable write
@@ -179,6 +170,30 @@ void PWM_Init (void)
 
 
 // Setters
+void FTM_REPOSO(){
+	PCRstr UserPCRL1;
+	UserPCRL1.PCR=false;
+
+	UserPCRL1.FIELD.DSE=true;
+	UserPCRL1.FIELD.MUX=PORT_mGPIO;
+	UserPCRL1.FIELD.IRQC=PORT_eDisabled;
+
+	PORT_Configure2 (PORTD,0,UserPCRL1);
+
+	PCRstr UserPCRL2;
+	UserPCRL2.PCR=false;
+
+	UserPCRL2.FIELD.DSE=true;
+	UserPCRL2.FIELD.MUX=PORT_mGPIO;
+	UserPCRL2.FIELD.IRQC=PORT_eDisabled;
+
+	PORT_Configure2 (PORTD,2,UserPCRL2);
+	GPIO_Write(PTD, 1 << 0,1);
+	GPIO_Write(PTD, 1 << 2,1);
+
+	return;
+}
+
 void FTM_FaultCtrl(FTM_t ftm,bool interrup_on,uint8_t mode){
 	//MODE
 	ftm->MODE|=FTM_MODE_FAULTM(mode);  //SE HABILITA LA POSIBILIDAD DE TENER UNA CONDICION DE FALLA
@@ -395,22 +410,6 @@ void FTM_SetPulseWidthModulationLogic (FTM_t ftm, FTMChannel_t channel, FTMLogic
 				                  (FTM_CnSC_ELSB((logic >> 1) & 0X01) | FTM_CnSC_ELSA((logic >> 0) & 0X01));
 	return;}
 
-	/*uint32_t cnsc=0;
-	if(logic==FTM_lAssertedHigh){
-		cnsc=ftm->CONTROLS[channel].CnSC;
-		cnsc|=FTM_CnSC_ELSA(1);
-		cnsc|=FTM_CnSC_ELSB(1);
-		cnsc|=FTM_CnSC_MSA(1);
-		cnsc|=FTM_CnSC_MSB(1);
-	}
-	else{//FTM_lAssertedHigh
-		cnsc=ftm->CONTROLS[channel].CnSC;
-		cnsc|=FTM_CnSC_ELSA(1);
-	}
-	ftm->CONTROLS[channel].CnSC=cnsc;
-	return;*/
-	/*ftm->CONTROLS[channel].CnSC = (ftm->CONTROLS[channel].CnSC & ~(FTM_CnSC_ELSB_MASK | FTM_CnSC_ELSA_MASK)) |
-				                  (FTM_CnSC_ELSB((logic >> 1) & 0X01) | FTM_CnSC_ELSA((logic >> 0) & 0X01));*/
 
 FTMLogic_t FTM_GetPulseWidthModulationLogic (FTM_t ftm, FTMChannel_t channel)
 {
