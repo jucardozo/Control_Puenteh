@@ -1,17 +1,11 @@
-/***************************************************************************//**
-  @file     App.c
-  @brief    Application functions
-  @author   Nicolás Magliola
- ******************************************************************************/
-
 /*******************************************************************************
  * INCLUDE HEADER FILES
  ******************************************************************************/
-#include "PORT.h"
-#include "GPIO.h"
-#include "FTM.h"
-#include "DRV_CMP.h"
-#include "Timer.h"
+
+#include "SysTick.h"
+#include "hardware.h"
+
+#define SYSTICK SysTick
 /*******************************************************************************
  * CONSTANT AND MACRO DEFINITIONS USING #DEFINE
  ******************************************************************************/
@@ -20,65 +14,41 @@
 /*******************************************************************************
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
  ******************************************************************************/
-
-static void delayLoop(uint32_t veces);
-
-
+//static (*callback_imp)(void) [10];
 /*******************************************************************************
  *******************************************************************************
                         GLOBAL FUNCTION DEFINITIONS
  *******************************************************************************
  ******************************************************************************/
+void (*callback)(void)=0;
 
-
-
-//Pines Utilizados
-/*CMP PTC8 INM(THRESHOLD)
- *    PTC9 INP(SEÑAL)
- *    PTB20 COUT
- *FTM PTD1 ->H1
- *    PTD0 ->L1
- *    PTD3-> H2
- *    PTD-> L2
- *    PTC12 -> FLT(INPUT FAULT)
-*/
-/* Función que se llama 1 vez, al comienzo del programa */
-void App_Init (void)
+bool SysTick_Init (void (*funcallback)(void))
 {
-	 	PORT_Init();
-		GPIO_Init();
-		FTM_Init();
-		Init_CMP(CMP0);
-		timerInit();
-		//delayLoop(40000000L);
-		MODO_REPOSO();
-		timerStart(0,TIMER_MS_2_TICKS(1),TIM_MODE_SINGLESHOT,MODO_NORMAL);
-		//FTM_StartClock(FTM3);
-
-
+	static bool yaInit=false;
+	if (!yaInit)
+	{
+		SYSTICK->CTRL = 0x00;
+		SYSTICK->LOAD = 12500000L-1;//125ms		//26us @ 100Mhz
+		SYSTICK->VAL = 0x00;
+		SYSTICK->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk|SysTick_CTRL_ENABLE_Msk;
+		callback=funcallback;
+		yaInit=true;
+		return true;
+	}
+	else return false;
 }
 
-/* Función que se llama constantemente en un ciclo infinito */
-void App_Run (void)
-{
-
-}
-
-
+void addCallback_imp();
 /*******************************************************************************
  *******************************************************************************
                         LOCAL FUNCTION DEFINITIONS
  *******************************************************************************
  ******************************************************************************/
-
-static void delayLoop(uint32_t veces)
+__ISR__ SysTick_Handler(void)
 {
-    while (veces--);
+	if(callback) callback();
 }
-
 
 
 /*******************************************************************************
  ******************************************************************************/
-
-

@@ -2,7 +2,8 @@
 #include "FTM.h"
 #include "PORT.h"
 #include "GPIO.h"
-#include "FTM.h"
+#include "Timer.h"
+
 
 
 
@@ -28,7 +29,8 @@ __ISR__ FTM0_IRQHandler(void)
 
 void PWM_ISR3 (void)
 {
-	FTM_REPOSO();
+	MODO_REPOSO();
+	timerStart(0,TIMER_MS2TICKS(1),TIM_MODE_SINGLESHOT,MODO_NORMAL);
 	return;
 
 }
@@ -127,26 +129,28 @@ void PWM_Init (void)
 	FTM_SetModulus(FTM3, PWM_modulus);			//configuro modulo
 	FTM_SetOverflowMode(FTM3, false);				//deshabilito la interrupciones
 
-	FTM_FaultCtrl(FTM3,true,FTM_FLT_ManualClearA);
+	FTM_FaultCtrl(FTM3,true,FTM_FLT_AutoClear);
 	FTM_FLT_TimeStable(FTM3,0);
 
-	//Configuracion Canal 0 -H1
+	//Configuracion Canal 0 -L1
+	//FTM_Channel_Outinit(FTM3,FTM_CH_0); //Fuerzo un 1
 	FTM_Combine_Channels(FTM3,FTM_CH_0); 		//channel 1 es el complemento del channel 0
 	FTM_FLT_Combine(FTM3,FTM_CH_0);
 	FTM_DeadTime(FTM3, FTM_CH_0 ,DeadTime_Value,FTM_Prescale_DT_1);	//habilitacion e insercion del deadtime de 100ns
-
 	FTM_SetWorkingMode(FTM3, FTM_CH_0, FTM_mPulseWidthModulation);			// MSA  / B
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_0, FTM_Low_true);   // ELSA / B
 	FTM_SetCounter(FTM3, FTM_CH_0, PWM_duty);
 	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_0);		//ACTIVO BAJO
 
-	//Configuracion para el canal 1
-	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_1);		//ACTIVO BAJO
+	//Configuracion para el canal 1 -H1
+
+	//FTM_Channel_Outinit(FTM3,FTM_CH_1); 	//pa probar
 	FTM_SetWorkingMode(FTM3, FTM_CH_1, FTM_mPulseWidthModulation);
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_1, FTM_Low_true);
 	FTM_SetCounter(FTM3, FTM_CH_1, PWM_duty);
 
-	//configuracion para el canal 2
+	//configuracion para el canal 2 -L2
+	//FTM_Channel_Outinit(FTM3,FTM_CH_2);
 	FTM_Combine_Channels(FTM3,FTM_CH_2); 		//channel 3 es el complemento del channel 2
 	FTM_FLT_Combine(FTM3,FTM_CH_2);
 	FTM_DeadTime(FTM3, FTM_CH_2 ,DeadTime_Value,FTM_Prescale_DT_1);
@@ -154,11 +158,23 @@ void PWM_Init (void)
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_2, FTM_Low_true);
 	FTM_SetCounter(FTM3, FTM_CH_2, PWM_duty);
 
-	//Configuracion para el canal 3
+	//Configuracion para el canal 3 -H2
+	//FTM_Channel_Outinit(FTM3,FTM_CH_3);
 	//FTM_Channel_Pol_ALOW(FTM3,FTM_CH_3);		//ACTIVO BAJO
 	FTM_SetWorkingMode(FTM3, FTM_CH_3, FTM_mPulseWidthModulation);
 	FTM_SetPulseWidthModulationLogic(FTM3, FTM_CH_3, FTM_Low_true);
 	FTM_SetCounter(FTM3, FTM_CH_3, PWM_duty);
+
+
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH0OC(1); //inicializo las salidas.
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH0OCV(1);
+
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH1OC(1);
+
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH2OC(1);
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH2OCV(1);
+
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH3OC(1);
 
 	//Disable write
 	FTM_Enable_W_Protec(FTM3);
@@ -170,7 +186,45 @@ void PWM_Init (void)
 
 
 // Setters
-void FTM_REPOSO(){
+void MODO_REPOSO(){
+	static int aux=0;
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH0OC(1); //inicializo las salidas.
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH0OCV(1);
+
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH1OC(1);
+
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH2OC(1);
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH2OCV(1);
+
+	FTM3->SWOCTRL|=FTM_SWOCTRL_CH3OC(1);
+	if (aux==0){
+	FTM_StartClock(FTM3);
+	aux++;
+	}
+	/*
+	static int aux=0;
+	if (aux==0){
+		PCRstr UserPCRH1;
+		UserPCRH1.PCR=false;
+		UserPCRH1.FIELD.DSE=true;
+		UserPCRH1.FIELD.MUX=PORT_mGPIO;
+		UserPCRH1.FIELD.IRQC=PORT_eDisabled;
+		PORT_Configure2 (PORTD,1,UserPCRH1);
+
+		PCRstr UserPCRH2;
+		UserPCRH2.PCR=false;
+		UserPCRH2.FIELD.DSE=true;
+		UserPCRH2.FIELD.MUX=PORT_mGPIO;
+		UserPCRH2.FIELD.IRQC=PORT_eDisabled;
+		PORT_Configure2 (PORTD,3,UserPCRH2);
+
+		GPIO_SetDirection(PTD, 1, GPIO__OUT);
+		GPIO_SetDirection(PTD, 3, GPIO__OUT);
+		GPIO_Write(PTD, 1 << 1,0);
+		GPIO_Write(PTD, 1 << 3,0);
+		aux++;
+	}
+
 	PCRstr UserPCRL1;
 	UserPCRL1.PCR=false;
 
@@ -191,9 +245,31 @@ void FTM_REPOSO(){
 	GPIO_Write(PTD, 1 << 0,1);
 	GPIO_Write(PTD, 1 << 2,1);
 
-	return;
+	return;*/
 }
 
+void MODO_NORMAL(){
+	//FTM_StopClock(FTM3);
+	FTM3->SWOCTRL=0; //Desabilito la salida forzada
+	//FTM_StartClock(FTM3);
+
+	/*
+	static int aux=0;
+	FTM_Init();
+	if(aux==0){
+		FTM_StartClock(FTM3);
+		aux++;
+	}
+	else{
+		FTM_ClearFaultF(FTM3);
+	}
+	return;*/
+}
+
+void FTM_ClearFaultF(FTM_t ftm){
+	ftm->FMS=FTM_FMS_FAULTF(0);
+	return;
+}
 void FTM_FaultCtrl(FTM_t ftm,bool interrup_on,uint8_t mode){
 	//MODE
 	ftm->MODE|=FTM_MODE_FAULTM(mode);  //SE HABILITA LA POSIBILIDAD DE TENER UNA CONDICION DE FALLA
@@ -260,15 +336,16 @@ void FTM_Sync_FTM_Counter(FTM_t ftm){
 
 
 void FTM_Channel_Outinit(FTM_t ftm, uint8_t Channel){
-	uint32_t outinit=0;
-	//uint32_t mode=0;
-	//mode=ftm->MODE;
-	//mode|=FTM_MODE_INIT(1);
-
-	outinit|=FTM_OUTINIT_CH0OI(0);
-
-	//ftm->MODE=mode;
-	ftm->OUTINIT=outinit;
+	switch(Channel){
+		case 0:ftm->OUTINIT|= FTM_OUTINIT_CH0OI(1);break;
+		case 1:ftm->OUTINIT|= FTM_OUTINIT_CH1OI(1);break;
+		case 2:ftm->OUTINIT|= FTM_OUTINIT_CH2OI(1);break;
+		case 3:ftm->OUTINIT|= FTM_OUTINIT_CH3OI(1);break;
+		case 4:ftm->OUTINIT|= FTM_OUTINIT_CH4OI(1);break;
+		case 5:ftm->OUTINIT|= FTM_OUTINIT_CH5OI(1);break;
+		case 6:ftm->OUTINIT|= FTM_OUTINIT_CH6OI(1);break;
+		case 7:ftm->OUTINIT|= FTM_OUTINIT_CH7OI(1);break;
+	}
 	return;
 }
 
