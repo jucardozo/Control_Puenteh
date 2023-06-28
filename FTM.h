@@ -97,7 +97,8 @@ void FTM_Sync_FTM_Counter(FTM_t ftm);
 //Especial para las condiciones de la aplicacion.
 void MODO_REPOSO();
 void MODO_NORMAL();
-void FTM_ClearFaultF(FTM_t ftm);
+void FTM_ClearFaultF();
+bool FTM_IsFault (FTM_t ftm);
 
 
 
